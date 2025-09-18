@@ -32,24 +32,28 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
         throws ServletException, IOException{
         try{
-            String jwt = parseJwt(request);
-            if(jwt != null && jwtUtils.validateJwtToken(jwt)){
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
+            //Lấy JWT từ request
+            String jwt = parseJwt(request); //lấy JWT từ header Authorization bằng cách bỏ tiền tố Bearer
 
-                UserDetails userDetails = userDetailsService.loadUserByUserName(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+            //Kiểm tra token hợp lệ
+            if(jwt != null && jwtUtils.validateJwtToken(jwt)){ //check token có đúng chữ ký hay hết hạn
+                String username = jwtUtils.getUserNameFromJwtToken(jwt); //lấy username từ JWT
+
+                UserDetails userDetails = userDetailsService.loadUserByUserName(username); //load UserDetail từ DB
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken( //tạo Authentication object
                         userDetails,
                         null,
                         userDetails.getAuthorities()
                 );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
+                //Gắn thông tin vào SecurityContext
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception e){
             logger.error("Cannot set user authentication: ", e);
         }
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(request, response); //phải gọi filterChain để request đi tiếp sang filter tiếp theo hoặc controller, nếu không gọi thì request bị chặn ở đây
     }
 
     private String parseJwt(HttpServletRequest request){
