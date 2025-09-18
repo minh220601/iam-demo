@@ -1,5 +1,6 @@
 package com.demo.iam_demo.config;
 
+import com.demo.iam_demo.jwt.AuthEntryPointJwt;
 import com.demo.iam_demo.jwt.AuthTokenFilter;
 import com.demo.iam_demo.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,7 @@ public class WebSecurityConfig {
     UserDetailsServiceImpl userDetailsService;
 
     @Autowired
-    private AuthEntrypointJwt unauthorizedHandler;
+    private AuthEntryPointJwt unauthorizedHandler;
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter(){
