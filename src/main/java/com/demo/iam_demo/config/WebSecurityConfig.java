@@ -1,5 +1,6 @@
 package com.demo.iam_demo.config;
 
+import com.demo.iam_demo.jwt.AuthTokenFilter;
 import com.demo.iam_demo.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
