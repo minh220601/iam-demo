@@ -1,6 +1,6 @@
 package com.demo.iam_demo.service;
 
-import com.demo.iam_demo.model.User;
+import com.demo.iam_demo.entity.User;
 import com.demo.iam_demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -39,7 +39,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             if(jwt != null && jwtUtils.validateJwtToken(jwt)){ //check token có đúng chữ ký hay hết hạn
                 String username = jwtUtils.getUserNameFromJwtToken(jwt); //lấy username từ JWT
 
-                UserDetails userDetails = userDetailsService.loadUserByUserName(username); //load UserDetail từ DB
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username); //load UserDetail từ DB
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken( //tạo Authentication object
                         userDetails,
                         null,

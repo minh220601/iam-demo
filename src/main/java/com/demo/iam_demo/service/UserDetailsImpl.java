@@ -1,6 +1,6 @@
 package com.demo.iam_demo.service;
 
-import com.demo.iam_demo.model.User;
+import com.demo.iam_demo.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

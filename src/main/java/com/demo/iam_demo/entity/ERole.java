@@ -1,4 +1,4 @@
-package com.demo.iam_demo.model;
+package com.demo.iam_demo.entity;
 
 public enum ERole {
     ROLE_USER,

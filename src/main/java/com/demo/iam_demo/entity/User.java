@@ -1,4 +1,4 @@
-package com.demo.iam_demo.model;
+package com.demo.iam_demo.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -32,18 +32,14 @@ public class User {
     @Size(max = 120)
     private String password;
 
-    @NotBlank
     @Past
     private LocalDate birthDate;
 
-    @NotBlank
     private String address;
 
-    @NotBlank
     @Pattern(regexp = "^\\+?[0-9]{10,11}$")
     private String phone;
 
-    @NotBlank
     private String avatar;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -54,7 +50,16 @@ public class User {
 
     public User(){}
 
-    public User(String username, String email, String password, LocalDate birthDate, String address, String phone, String avatar){
+    //constructor 3 tham số (dùng khi signup)
+    public User(String username, String email, String password){
+        this.username = username;
+        this.email = email;
+        this.password = password;
+    }
+
+    //constructor 7 tham số (dùng khi tạo user đầy đủ thông tin)
+    public User(String username, String email, String password,
+                LocalDate birthDate, String address, String phone, String avatar){
         this.username = username;
         this.email = email;
         this.password = password;

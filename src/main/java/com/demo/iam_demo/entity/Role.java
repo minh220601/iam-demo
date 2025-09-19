@@ -1,4 +1,4 @@
-package com.demo.iam_demo.model;
+package com.demo.iam_demo.entity;
 
 import jakarta.persistence.*;
 
