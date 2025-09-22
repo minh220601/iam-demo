@@ -1,4 +1,4 @@
-package com.demo.iam_demo.jwt;
+package com.demo.iam_demo.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
