@@ -1,95 +1,83 @@
-package com.demo.iam_demo.jwt;
+package com.demo.iam_demo.security;
 
-import com.demo.iam_demo.service.UserDetailsImpl;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
 public class JwtUtils {
-    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+    private final SecretKey key;
+    private final long accessTokenExpiration;
+    private final long refreshTokenExpiration;
 
-    @Value("${jwt.Secret}")
-    private String jwtSecret;
-
-    //thời gian token sống (giây)
-    @Value("${jwt.valid-duration}")
-    private long jwtValidDuration;
-
-    //thời gian token có thể refresh (giây)
-    @Value("${jwt.refreshable-duration}")
-    private long jwtRefreshableDuration;
-
-    private Key key(){
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+    public JwtUtils(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-exp-seconds}") long accessTokenExpiration,
+            @Value("${jwt.refresh-exp-seconds}") long refreshTokenExpiration
+    ){
+        this.key = Keys.hmacShaKeyFor(secret.getBytes()); //Tạo key từ secret
+        this.accessTokenExpiration = accessTokenExpiration * 1000; // đổi second -> ms
+        this.refreshTokenExpiration = refreshTokenExpiration * 1000;
     }
 
-    //sinh JWT khi user login thành công
-    public String generateJwtToken(Authentication authentication){
-        UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
-
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtValidDuration * 1000);//đổi second -> milisecond
-
+    //sinh access token
+    public String generateAccessToken(String subject){
         return Jwts.builder()
-                .setSubject(userPrincipal.getUsername())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(key(), SignatureAlgorithm.HS256)
+                .subject(subject)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .signWith(key)
                 .compact();
     }
 
-    //lấy username từ JWT
-    public String getUserNameFromJwtToken(String token){
-        return Jwts.parserBuilder()
-                .setSigningKey()
+    //sinh refresh token
+    public String generateRefreshToken(String subject){
+        return Jwts.builder()
+                .subject(subject)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .signWith(key)
+                .compact();
+    }
+
+    //lấy subject (email/username) từ token
+    public String extractSubject(String token){
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimJws(token)
-                .getBody()
+                .parseSignedClaims(token)
+                .getPayload()
                 .getSubject();
     }
 
     //kiểm tra token hợp lệ
-    public boolean validateJwtToken(String authToken){
+    public boolean validateToken(String token){
         try{
-            Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);
-            return true;
-        } catch (MalformedJwtException e){
-            logger.error("Invalid JWT token: {}", e.getMessage());
-        } catch (ExpiredJwtException e){
-            logger.error("JWT token is expired: {}", e.getMessage());
-        } catch (UnsupportedJwtException e){
-            logger.error("JWT token is unsupported: {}", e.getMessage());
-        } catch (IllegalArgumentException e){
-            logger.error("JWT claims string is empty: {}", e.getMessage());
-        }
-
-        return false;
-    }
-
-    //kiểm tra token còn trong thời gian refresh không
-    public boolean isTokenRefreshable(String token){
-        try {
-            Date issuedAt = Jwts.parserBuilder()
-                    .setSigningKey(key())
+            Jwts.parser()
+                    .verifyWith(key)
                     .build()
-                    .parserClaimsJws(token)
-                    .getBody()
-                    .getIssuedAt();
-
-            long now = System.currentTimeMillis();
-            return (now - issuedAt.getTime()) < jwtRefreshableDuration * 1000;
-        } catch (JwtException | IllegalArgumentException e) {
+                    .parseSignedClaims(token);
+            return true;
+        } catch (Exception e){
             return false;
         }
+    }
+
+    public long getRefreshTokenExpiration(){
+        return refreshTokenExpiration;
+    }
+
+    public long getRemainingValidity(String token) {
+        Date expiration = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration();
+        return expiration.getTime() - System.currentTimeMillis();
     }
 }
