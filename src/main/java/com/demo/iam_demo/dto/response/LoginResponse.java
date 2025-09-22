@@ -1,17 +1,11 @@
 package com.demo.iam_demo.dto.response;
 
-public class MessageResponse {
-    private String message;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-    public MessageResponse(String message){
-        this.message = message;
-    }
-
-    public String getMessage(){
-        return message;
-    }
-
-    public void setMessage(String message){
-        this.message = message;
-    }
+@Data
+@AllArgsConstructor
+public class LoginResponse {
+    private String accessToken;
+    private String refreshToken;
 }
