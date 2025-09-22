@@ -8,6 +8,7 @@ import com.demo.iam_demo.dto.response.LoginResponse;
 import com.demo.iam_demo.dto.response.TokenRefreshResponse;
 import com.demo.iam_demo.dto.response.UserResponse;
 import com.demo.iam_demo.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,8 +36,12 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@Valid @RequestBody LogoutRequest request){
-        authService.logout(request.getEmail());
+    public ResponseEntity<String> logout(HttpServletRequest request, @Valid @RequestBody LogoutRequest dto){
+        String authHeader = request.getHeader("Authorization");
+        if(authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            authService.logout(dto.getEmail(), accessToken);
+        }
         return ResponseEntity.ok("Logout successful");
     }
 }
