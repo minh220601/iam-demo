@@ -1,4 +1,4 @@
-package com.demo.iam_demo.entity;
+package com.demo.iam_demo.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
