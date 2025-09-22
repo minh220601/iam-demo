@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,10 +19,11 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationFiler extends OncePerRequestFilter {
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final UserDetailsServiceImpl userDetailsService;
+    private final StringRedisTemplate redisTemplate;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -36,6 +38,13 @@ public class JwtAuthenticationFiler extends OncePerRequestFilter {
             String token = authHeader.substring(7);
 
             if(jwtUtils.validateToken(token)){
+                // kiểm tra token có bị blacklist không
+                String isBlacklisted = redisTemplate.opsForValue().get("blacklist_token:" + token);
+                if(isBlacklisted != null){
+                    filterChain.doFilter(request, response); // bỏ qua, coi như không auth
+                    return;
+                }
+
                 //lấy subject (email/username) từ token
                 String username = jwtUtils.extractSubject(token);
 
