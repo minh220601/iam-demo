@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.util.Set;
 
 @Data
-public class UserInfoResponse {
+public class UserInfoResponseDTO {
     private Long id;
     private String username;
     private String email;
