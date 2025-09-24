@@ -32,6 +32,37 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
+    public UserResponse register(RegisterRequest request){
+        // kiểm tra email đã tồn tại chưa
+        if(userRepository.findByEmail(request.getEmail()).isPresent()){
+            throw new RuntimeException("Email is already registered");
+        }
+
+        // mã hóa password
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+
+        // gán role mặc định = ROLE_USER
+        Role defaultRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RuntimeException("Default role not found"));
+
+        User user = User.builder()
+                .email(request.getEmail())
+                .username(request.getUsername())
+                .password(encodedPassword)
+                .phone(request.getPhone())
+                .address(request.getAddress())
+                .active(true)
+                .build();
+
+        user.getRoles().add(defaultRole);
+
+        // lưu database
+        User saved = userRepository.save(user);
+
+        // trả DTO
+        return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername(), saved.isActive());
+    }
+
     public LoginResponse login(LoginRequest request){
         // xác thực email + password
         Authentication authentication = authenticationManager.authenticate(
@@ -59,38 +90,7 @@ public class AuthService {
         return new LoginResponse(accessToken, refreshToken);
     }
 
-    public UserResponse register(RegisterRequest request){
-        // kiểm tra email đã tồn tại chưa
-        if(userRepository.findByEmail(request.getEmail()).isPresent()){
-            throw new RuntimeException("Email is already registered");
-        }
-
-        // mã hóa password
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-
-        // gán role mặc định = ROLE_USER
-        Role userRole = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new RuntimeException("Default role not found"));
-
-        User user = User.builder()
-                .email(request.getEmail())
-                .username(request.getUsername())
-                .password(encodedPassword)
-                .phone(request.getPhone())
-                .address(request.getAddress())
-                .active(true)
-                .build();
-
-        user.getRoles().add(userRole);
-
-        // lưu database
-        User saved = userRepository.save(user);
-
-        // trả DTO
-        return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername(), saved.isActive());
-    }
-
-    public TokenRefreshResponse refreshToken(TokenRefreshRequest request){
+    /*public TokenRefreshResponse refreshToken(TokenRefreshRequest request){
         String refreshToken = request.getRefreshToken();
 
         // kiểm tra refresh token hợp lệ
@@ -121,11 +121,11 @@ public class AuthService {
 
         // trả response
         return new TokenRefreshResponse(newAccessToken, newRefreshToken);
-    }
+    }*/
 
-    public void logout(String email, String accessToken){
+    /*public void logout(String email, String accessToken){
         //xóa refresh token trong redis
-        redisTemplate.delete("refresh_token" + email);
+        redisTemplate.delete("refresh_token:" + email);
 
         //thêm access token vào blacklist
         long expirationMillis = jwtUtils.getRemainingValidity(accessToken);
@@ -137,5 +137,5 @@ public class AuthService {
                     TimeUnit.MILLISECONDS
             );
         }
-    }
+    }*/
 }
