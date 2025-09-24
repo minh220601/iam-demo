@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -32,11 +33,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         throws ServletException, IOException{
 
         //lấy Authorization header
-        String authHeader = request.getHeader("Authorization");
+        final String authHeader = request.getHeader("Authorization");
 
-        if(authHeader != null && authHeader.startsWith("Bearer ")){
-            String token = authHeader.substring(7);
+        if(authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return; // không có token thì bỏ qua
 
+        }
+
+        final String token = authHeader.substring(7); // cắt Bearer
+        final String userEmail = jwtUtils.extractSubject(token);
+
+        // nếu có email và SecurityContext chưa set Authentication
+        if(userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null){
+
+            // load user từ DB
+            UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
+
+            // validate token
             if(jwtUtils.validateToken(token)){
                 // kiểm tra token có bị blacklist không
 //                String isBlacklisted = redisTemplate.opsForValue().get("blacklist_token:" + token);
@@ -45,26 +59,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 //                    return;
 //                }
 
-                //lấy subject (email/username) từ token
-                String username = jwtUtils.extractSubject(token);
+                //nếu hợp lệ -> set authentication
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
 
-                //kiểm tra Security context chưa có user
-                if(username != null && SecurityContextHolder.getContext().getAuthentication() == null){
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    //nếu hợp lệ -> set authentication
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
+                // set vào SecurityContext
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
 
-        //cho request đi tiếp
+        // cho request đi tiếp
         filterChain.doFilter(request, response);
     }
 }
