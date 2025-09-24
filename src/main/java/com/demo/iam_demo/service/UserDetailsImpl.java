@@ -16,44 +16,54 @@ import java.util.stream.Collectors;
 @Getter
 public class UserDetailsImpl implements UserDetails {
 
-    private final Long id;
-    private final String username;
-    private final String email;
-    private final String password;
-    private final boolean active;
-    private final Collection<? extends GrantedAuthority> authorities;
+//    private final Long id;
+//    private final String username;
+//    private final String email;
+//    private final String password;
+//    private final boolean active;
+//    private final Collection<? extends GrantedAuthority> authorities;
+//
+//    //tạo UserDetailsImpl từ entity User
+//    public static UserDetailsImpl build(User user){
+//        Set<GrantedAuthority> authorities = user.getRoles().stream()
+//                .map(Role::getName) // Role.name
+//                .map(role -> new SimpleGrantedAuthority(role.toString()))
+//                .collect(Collectors.toSet());
+//
+//        return new UserDetailsImpl(
+//                user.getId(),
+//                user.getUsername(),
+//                user.getEmail(),
+//                user.getPassword(),
+//                user.isActive(),
+//                authorities
+//        );
+//    }
 
-    //tạo UserDetailsImpl từ entity User
-    public static UserDetailsImpl build(User user){
-        Set<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(Role::getName) // Role.name
-                .map(role -> new SimpleGrantedAuthority(role.toString()))
-                .collect(Collectors.toSet());
+//    @Override
+//    public Collection<? extends GrantedAuthority> getAuthorities(){
+//        return authorities;
+//    }
 
-        return new UserDetailsImpl(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getPassword(),
-                user.isActive(),
-                authorities
-        );
-    }
+    private final User user;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities(){
-        return authorities;
+        Set<Role> roles = user.getRoles();
+        return roles.stream()
+                .map(role -> new SimpleGrantedAuthority(role.getName()))
+                .collect(Collectors.toSet());
     }
 
     //Spring Security dùng username để login
     @Override
     public String getUsername(){
-        return email; // dùng email làm username
+        return user.getEmail(); // dùng email làm username
     }
 
     @Override
     public String getPassword(){
-        return password;
+        return user.getPassword();
     }
 
     //tạm thời để toàn bộ return true -> account luôn active, không bị khóa, không hết hạn
@@ -64,7 +74,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked(){
-        return active;
+        return true;
     }
 
     @Override
@@ -74,6 +84,14 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isEnabled(){
-        return true;
+        return user.isActive();
+    }
+
+    public Long getId(){
+        return user.getId();
+    }
+
+    public String getEmail(){
+        return user.getEmail();
     }
 }
