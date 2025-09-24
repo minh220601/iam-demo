@@ -39,11 +39,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if(jwtUtils.validateToken(token)){
                 // kiểm tra token có bị blacklist không
-                String isBlacklisted = redisTemplate.opsForValue().get("blacklist_token:" + token);
-                if(isBlacklisted != null){
-                    filterChain.doFilter(request, response); // bỏ qua, coi như không auth
-                    return;
-                }
+//                String isBlacklisted = redisTemplate.opsForValue().get("blacklist_token:" + token);
+//                if(isBlacklisted != null){
+//                    filterChain.doFilter(request, response); // bỏ qua, coi như không auth
+//                    return;
+//                }
 
                 //lấy subject (email/username) từ token
                 String username = jwtUtils.extractSubject(token);
