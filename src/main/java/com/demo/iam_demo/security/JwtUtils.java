@@ -11,17 +11,17 @@ import java.util.Date;
 @Component
 public class JwtUtils {
     private final SecretKey key;
-    private final long accessTokenExpiration;
-    private final long refreshTokenExpiration;
+    private final long jwtExpirationMs;
+    private final long refreshExpirationMs;
 
     public JwtUtils(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-exp-seconds}") long accessTokenExpiration,
-            @Value("${jwt.refresh-exp-seconds}") long refreshTokenExpiration
+            @Value("${jwt.access-exp-seconds}") long jwtExpSec,
+            @Value("${jwt.refresh-exp-seconds}") long refreshExpSec
     ){
         this.key = Keys.hmacShaKeyFor(secret.getBytes()); //Tạo key từ secret
-        this.accessTokenExpiration = accessTokenExpiration * 1000; // đổi second -> ms
-        this.refreshTokenExpiration = refreshTokenExpiration * 1000;
+        this.jwtExpirationMs = jwtExpSec * 1000; // đổi second -> ms
+        this.refreshExpirationMs = refreshExpSec * 1000;
     }
 
     //sinh access token
@@ -29,7 +29,7 @@ public class JwtUtils {
         return Jwts.builder()
                 .subject(subject)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(key)
                 .compact();
     }
@@ -39,7 +39,7 @@ public class JwtUtils {
         return Jwts.builder()
                 .subject(subject)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .expiration(new Date(System.currentTimeMillis() + refreshExpirationMs))
                 .signWith(key)
                 .compact();
     }
@@ -62,22 +62,30 @@ public class JwtUtils {
                     .build()
                     .parseSignedClaims(token);
             return true;
-        } catch (Exception e){
+        } catch (JwtException | IllegalArgumentException e){
             return false;
         }
     }
 
     public long getRefreshTokenExpiration(){
-        return refreshTokenExpiration;
+        return refreshExpirationMs;
     }
 
     public long getRemainingValidity(String token) {
-        Date expiration = Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getExpiration();
-        return expiration.getTime() - System.currentTimeMillis();
+        try {
+            // parse jwt, xác thực chữ ký, lấy payload
+            Date expiration = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getExpiration();
+
+            // lấy thời gian hết hạn - thời gian hiện tại
+            return expiration.getTime() - System.currentTimeMillis();
+        } catch (Exception e){
+            // nếu token lỗi (expired, invalid, parse error) thì coi như hết hạn
+            return 0;
+        }
     }
 }
