@@ -20,22 +20,22 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final AuthService authService;
 
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
-        return ResponseEntity.ok(authService.login(request));
-    }
-
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request){
         return ResponseEntity.ok(authService.register(request));
     }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<TokenRefreshResponse> refresh(@Valid @RequestBody TokenRefreshRequest request){
-        return ResponseEntity.ok(authService.refreshToken(request));
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
+        return ResponseEntity.ok(authService.login(request));
     }
 
-    @PostMapping("/logout")
+    /*@PostMapping("/refresh")
+    public ResponseEntity<TokenRefreshResponse> refresh(@Valid @RequestBody TokenRefreshRequest request){
+        return ResponseEntity.ok(authService.refreshToken(request));
+    }*/
+
+    /*@PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request, @Valid @RequestBody LogoutRequest dto){
         String authHeader = request.getHeader("Authorization");
         if(authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -43,5 +43,5 @@ public class AuthController {
             authService.logout(dto.getEmail(), accessToken);
         }
         return ResponseEntity.ok("Logout successful");
-    }
+    }*/
 }
