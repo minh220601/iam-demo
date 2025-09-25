@@ -7,7 +7,7 @@ import java.util.Set;
 
 @Data
 public class UserInfoRequest {
-    private Long id;
+    //dùng cho admin chỉnh sửa info
     private String username;
     private String email;
     private LocalDate birthDate;
