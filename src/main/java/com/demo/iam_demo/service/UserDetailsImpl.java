@@ -2,6 +2,7 @@ package com.demo.iam_demo.service;
 
 import com.demo.iam_demo.model.Role;
 import com.demo.iam_demo.model.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -16,54 +17,56 @@ import java.util.stream.Collectors;
 @Getter
 public class UserDetailsImpl implements UserDetails {
 
-//    private final Long id;
-//    private final String username;
-//    private final String email;
-//    private final String password;
-//    private final boolean active;
-//    private final Collection<? extends GrantedAuthority> authorities;
-//
-//    //tạo UserDetailsImpl từ entity User
-//    public static UserDetailsImpl build(User user){
-//        Set<GrantedAuthority> authorities = user.getRoles().stream()
-//                .map(Role::getName) // Role.name
-//                .map(role -> new SimpleGrantedAuthority(role.toString()))
-//                .collect(Collectors.toSet());
-//
-//        return new UserDetailsImpl(
-//                user.getId(),
-//                user.getUsername(),
-//                user.getEmail(),
-//                user.getPassword(),
-//                user.isActive(),
-//                authorities
-//        );
-//    }
+    private final Long id;
+    private final String username;
+    private final String email;
 
-//    @Override
-//    public Collection<? extends GrantedAuthority> getAuthorities(){
-//        return authorities;
-//    }
+    @JsonIgnore
+    private final String password;
+    private final boolean active;
+    private final Collection<? extends GrantedAuthority> authorities;
 
-    private final User user;
+    //tạo UserDetailsImpl từ entity User
+    public static UserDetailsImpl build(User user){
+        Set<GrantedAuthority> authorities = user.getRoles().stream()
+                .map(Role::getName) // Role.name
+                .map(role -> new SimpleGrantedAuthority(role.toString()))
+                .collect(Collectors.toSet());
+
+        return new UserDetailsImpl(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getPassword(),
+                user.isActive(),
+                authorities
+        );
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities(){
-        Set<Role> roles = user.getRoles();
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .collect(Collectors.toSet());
+        return authorities;
     }
+
+//    private final User user;
+//
+//    @Override
+//    public Collection<? extends GrantedAuthority> getAuthorities(){
+//        Set<Role> roles = user.getRoles();
+//        return roles.stream()
+//                .map(role -> new SimpleGrantedAuthority(role.getName()))
+//                .collect(Collectors.toSet());
+//    }
 
     //Spring Security dùng username để login
     @Override
     public String getUsername(){
-        return user.getEmail(); // dùng email làm username
+        return email; // dùng email làm username
     }
 
     @Override
     public String getPassword(){
-        return user.getPassword();
+        return password;
     }
 
     //tạm thời để toàn bộ return true -> account luôn active, không bị khóa, không hết hạn
@@ -84,14 +87,14 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isEnabled(){
-        return user.isActive();
+        return true;
     }
 
     public Long getId(){
-        return user.getId();
+        return id;
     }
 
     public String getEmail(){
-        return user.getEmail();
+        return email;
     }
 }
