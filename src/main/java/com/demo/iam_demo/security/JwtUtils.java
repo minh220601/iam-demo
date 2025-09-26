@@ -28,6 +28,7 @@ public class JwtUtils {
     public String generateAccessToken(String subject){
         return Jwts.builder()
                 .subject(subject)
+                .claim("type", "access")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(key)
@@ -38,10 +39,21 @@ public class JwtUtils {
     public String generateRefreshToken(String subject){
         return Jwts.builder()
                 .subject(subject)
+                .claim("type", "refresh")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshExpirationMs))
                 .signWith(key)
                 .compact();
+    }
+
+    // lấy loại token
+    public String extractTokenType(String token){
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("type", String.class);
     }
 
     //lấy subject (email/username) từ token
