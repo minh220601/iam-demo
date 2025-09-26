@@ -79,18 +79,18 @@ public class AuthService {
         String refreshToken = jwtUtils.generateRefreshToken(user.getEmail());
 
         // lưu refresh token vào redis (key = email, value = token)
-//        redisTemplate.opsForValue().set(
-//                "refresh_token:" + user.getEmail(),
-//                refreshToken,
-//                jwtUtils.getRefreshTokenExpiration(),
-//                TimeUnit.MILLISECONDS // thời gian sống = refresh-exp-seconds
-//        );
+        redisTemplate.opsForValue().set(
+                "refresh_token:" + user.getEmail(),
+                refreshToken,
+                jwtUtils.getRefreshTokenExpiration(),
+                TimeUnit.MILLISECONDS // thời gian sống = refresh-exp-seconds
+        );
 
         // trả response
         return new LoginResponse(accessToken, refreshToken);
     }
 
-    /*public TokenRefreshResponse refreshToken(TokenRefreshRequest request){
+    public TokenRefreshResponse refreshToken(TokenRefreshRequest request){
         String refreshToken = request.getRefreshToken();
 
         // kiểm tra refresh token hợp lệ
@@ -121,9 +121,9 @@ public class AuthService {
 
         // trả response
         return new TokenRefreshResponse(newAccessToken, newRefreshToken);
-    }*/
+    }
 
-    /*public void logout(String email, String accessToken){
+    public void logout(String email, String accessToken){
         //xóa refresh token trong redis
         redisTemplate.delete("refresh_token:" + email);
 
@@ -137,5 +137,5 @@ public class AuthService {
                     TimeUnit.MILLISECONDS
             );
         }
-    }*/
+    }
 }
