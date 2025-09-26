@@ -7,6 +7,7 @@ import com.demo.iam_demo.dto.request.TokenRefreshRequest;
 import com.demo.iam_demo.dto.response.LoginResponse;
 import com.demo.iam_demo.dto.response.TokenRefreshResponse;
 import com.demo.iam_demo.dto.response.UserResponse;
+import com.demo.iam_demo.security.JwtUtils;
 import com.demo.iam_demo.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+    private final JwtUtils jwtUtils;
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request){
@@ -30,18 +32,19 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    /*@PostMapping("/refresh")
+    @PostMapping("/refresh")
     public ResponseEntity<TokenRefreshResponse> refresh(@Valid @RequestBody TokenRefreshRequest request){
         return ResponseEntity.ok(authService.refreshToken(request));
-    }*/
+    }
 
-    /*@PostMapping("/logout")
-    public ResponseEntity<String> logout(HttpServletRequest request, @Valid @RequestBody LogoutRequest dto){
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletRequest request){
         String authHeader = request.getHeader("Authorization");
         if(authHeader != null && authHeader.startsWith("Bearer ")) {
             String accessToken = authHeader.substring(7);
-            authService.logout(dto.getEmail(), accessToken);
+            String email = jwtUtils.extractSubject(accessToken);
+            authService.logout(email, accessToken);
         }
         return ResponseEntity.ok("Logout successful");
-    }*/
+    }
 }
