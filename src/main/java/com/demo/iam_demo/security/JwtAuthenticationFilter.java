@@ -42,6 +42,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String token = authHeader.substring(7); // cắt Bearer
+
+        // kiểm tra token có bị blacklist không
+        String isBlacklisted = redisTemplate.opsForValue().get("blacklist_token:" + token);
+        if(isBlacklisted != null){
+            //filterChain.doFilter(request, response); // bỏ qua, coi như không auth
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token has been revoked (blacklist)");
+            return;
+        }
+
         final String userEmail = jwtUtils.extractSubject(token);
 
         // nếu có email và SecurityContext chưa set Authentication
@@ -52,12 +62,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // validate token
             if(jwtUtils.validateToken(token)){
-                // kiểm tra token có bị blacklist không
-//                String isBlacklisted = redisTemplate.opsForValue().get("blacklist_token:" + token);
-//                if(isBlacklisted != null){
-//                    filterChain.doFilter(request, response); // bỏ qua, coi như không auth
-//                    return;
-//                }
+                // kiểm tra loại token
+                String type = jwtUtils.extractTokenType(token);
+                if (!"access".equals(type)){
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().write("Invalid token type: " + type);
+                    return;
+                }
 
                 //nếu hợp lệ -> set authentication
                 UsernamePasswordAuthenticationToken authToken =
