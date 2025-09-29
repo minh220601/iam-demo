@@ -1,5 +1,6 @@
 package com.demo.iam_demo.service;
 
+import com.demo.iam_demo.dto.request.ChangePasswordRequest;
 import com.demo.iam_demo.dto.request.UpdateProfileRequest;
 import com.demo.iam_demo.dto.request.UserInfoRequest;
 import com.demo.iam_demo.dto.response.UserInfoResponseDTO;
@@ -9,6 +10,7 @@ import com.demo.iam_demo.model.User;
 import com.demo.iam_demo.repository.RoleRepository;
 import com.demo.iam_demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,6 +23,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // lấy danh sách tất cả user
     public List<UserInfoResponseDTO> getAllUsers(){
@@ -85,5 +88,20 @@ public class UserService {
     // xóa user
     public void deleteUser(Long id){
         userRepository.deleteById(id);
+    }
+
+    // đổi mật khẩu
+    public void changePassword(String email, ChangePasswordRequest request){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // kiểm tra mật khẩu cũ
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())){
+            throw new RuntimeException("Old password is incorrect");
+        }
+
+        // mã hóa mật khẩu mới
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }
