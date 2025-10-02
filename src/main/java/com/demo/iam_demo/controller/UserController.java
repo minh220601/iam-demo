@@ -1,10 +1,12 @@
 package com.demo.iam_demo.controller;
 
+import com.demo.iam_demo.dto.request.ChangePasswordRequest;
 import com.demo.iam_demo.dto.request.UpdateProfileRequest;
 import com.demo.iam_demo.dto.request.UserInfoRequest;
 import com.demo.iam_demo.dto.response.UserInfoResponseDTO;
 import com.demo.iam_demo.model.User;
 import com.demo.iam_demo.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -60,5 +62,13 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long id){
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // đổi password
+    @PostMapping("/change-password")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<String> changePassword(Authentication authentication, @Valid @RequestBody ChangePasswordRequest request){
+        userService.changePassword(authentication.getName(), request);
+        return ResponseEntity.ok("Password change successfully");
     }
 }
