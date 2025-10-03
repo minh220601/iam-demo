@@ -101,7 +101,7 @@ public class JwtUtils {
         }
     }
 
-    // sinh reset password token (thời hạn ngắn, VD 15 phút
+    // sinh reset password token (thời hạn ngắn, VD 15 phút)
     public String generateResetPasswordToken(String subject){
         long resetExpirationMs = 15 * 60 * 1000; // 15 phút
         return Jwts.builder()
@@ -111,5 +111,13 @@ public class JwtUtils {
                 .claim("type", "reset") // đánh dấu token reset
                 .signWith(key)
                 .compact();
+    }
+
+    public Claims extractAllClaims(String token){
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
