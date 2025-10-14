@@ -11,6 +11,8 @@ import com.demo.iam_demo.model.User;
 import com.demo.iam_demo.repository.RoleRepository;
 import com.demo.iam_demo.repository.UserRepository;
 import com.demo.iam_demo.security.JwtUtils;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,6 +33,7 @@ public class AuthService {
     private final StringRedisTemplate redisTemplate;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public UserResponse register(RegisterRequest request){
         // kiểm tra email đã tồn tại chưa
@@ -137,5 +140,48 @@ public class AuthService {
                     TimeUnit.MILLISECONDS
             );
         }
+    }
+
+    // yêu cầu reset password
+    public void requestPasswordReset(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // sinh otp 6 số
+        int otp = (int) (Math.random() * 900000) + 100000;
+        String otpCode = String.valueOf(otp);
+
+        // lưu vào redis
+        redisTemplate.opsForValue().set(
+                "reset_otp:" + email.toLowerCase(),
+                otpCode,
+                5, TimeUnit.MINUTES
+        );
+
+        // gửi email otp
+        emailService.sendResetPasswordEmail(user.getEmail(), otpCode);
+    }
+
+    // thực hiện reset password
+    public void resetPassword(String email, String otp, String newPassword){
+        String key = "reset_otp:" + email.trim().toLowerCase();
+        String storedOtp = redisTemplate.opsForValue().get(key);
+
+        if(storedOtp == null){
+            throw new RuntimeException("OTP expired or not found");
+        }
+
+        if(!storedOtp.equals(otp)){
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        // xóa otp sau khi dùng
+        redisTemplate.delete(key);
+
+        // cập nhật mật khẩu mới
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }
