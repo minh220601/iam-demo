@@ -1,9 +1,6 @@
 package com.demo.iam_demo.controller;
 
-import com.demo.iam_demo.dto.request.LoginRequest;
-import com.demo.iam_demo.dto.request.LogoutRequest;
-import com.demo.iam_demo.dto.request.RegisterRequest;
-import com.demo.iam_demo.dto.request.TokenRefreshRequest;
+import com.demo.iam_demo.dto.request.*;
 import com.demo.iam_demo.dto.response.LoginResponse;
 import com.demo.iam_demo.dto.response.TokenRefreshResponse;
 import com.demo.iam_demo.dto.response.UserResponse;
@@ -46,5 +43,17 @@ public class AuthController {
             authService.logout(email, accessToken);
         }
         return ResponseEntity.ok("Logout successful");
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request){
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok("OTP has been sent to your email");
+    }
+
+    @PatchMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request){
+        authService.resetPassword(request.getEmail(), request.getOtp(), request.getNewPassword());
+        return ResponseEntity.ok("Password reset successfully");
     }
 }
