@@ -11,8 +11,6 @@ import com.demo.iam_demo.model.User;
 import com.demo.iam_demo.repository.RoleRepository;
 import com.demo.iam_demo.repository.UserRepository;
 import com.demo.iam_demo.security.JwtUtils;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -22,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.sql.Time;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -45,7 +44,7 @@ public class AuthService {
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
         // gán role mặc định = ROLE_USER
-        Role defaultRole = roleRepository.findByName("ROLE_USER")
+        Role defaultRole = roleRepository.findByName("ROLE_ADMIN")
                 .orElseThrow(() -> new RuntimeException("Default role not found"));
 
         User user = User.builder()
@@ -66,18 +65,52 @@ public class AuthService {
         return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername(), saved.isActive());
     }
 
-    public LoginResponse login(LoginRequest request){
-        // xác thực email + password
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+    public String initLogin(LoginRequest request){
+        // kiểm tra email tồn tại
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // kiểm tra password
+        if(!passwordEncoder.matches(request.getPassword(), user.getPassword())){
+            throw new RuntimeException("Invalid password");
+        }
+
+        // tạo OTP
+        int otp = (int) (Math.random() * 900000) + 100000;
+        String otpCode = String.valueOf(otp);
+
+        // lưu OTP vào redis 5 phút
+        redisTemplate.opsForValue().set(
+                "login_otp:" + user.getEmail(),
+                otpCode,
+                5, TimeUnit.MINUTES
         );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // lấy thông tin user
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        User user = userRepository.findByEmail(userDetails.getEmail()).orElseThrow();
+        // gửi email
+        emailService.sendLoginOtp(user.getEmail(), otpCode);
 
-        // sinh JWT
+        return "OTP send to email. Verify to complete login.";
+    }
+
+    public LoginResponse verifyLoginOtp(String email, String otp){
+        // xác thực OTP và cấp token
+        String key = "login_otp:" + email.toLowerCase();
+        String storedOtp = redisTemplate.opsForValue().get(key);
+
+        if(storedOtp == null){
+            throw new RuntimeException("OTP expired or not found");
+        }
+        if(!storedOtp.equals(otp)){
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        // xóa OTP sau khi xác thực
+        redisTemplate.delete(key);
+
+        // tìm user và sinh JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         String accessToken = jwtUtils.generateAccessToken(user.getEmail());
         String refreshToken = jwtUtils.generateRefreshToken(user.getEmail());
 
