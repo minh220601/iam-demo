@@ -25,8 +25,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<String> initLogin(@Valid @RequestBody LoginRequest request){
+        String msg = authService.initLogin(request);
+        return ResponseEntity.ok(msg);
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<LoginResponse> verifyLoginOtp(@RequestBody VerifyOtpRequest request){
+        LoginResponse result = authService.verifyLoginOtp(request.getEmail(), request.getOtp());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/refresh")
