@@ -4,7 +4,6 @@ import com.demo.iam_demo.dto.request.ChangePasswordRequest;
 import com.demo.iam_demo.dto.request.UpdateProfileRequest;
 import com.demo.iam_demo.dto.request.UserInfoRequest;
 import com.demo.iam_demo.dto.response.UserInfoResponseDTO;
-import com.demo.iam_demo.model.User;
 import com.demo.iam_demo.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -70,5 +71,12 @@ public class UserController {
     public ResponseEntity<String> changePassword(Authentication authentication, @Valid @RequestBody ChangePasswordRequest request){
         userService.changePassword(authentication.getName(), request);
         return ResponseEntity.ok("Password change successfully");
+    }
+
+    // upload avatar
+    @PostMapping("/avatar")
+    public ResponseEntity<String> uploadAvatar(@RequestParam("file") MultipartFile file, Principal principal){
+        String imageUrl = userService.updateAvatar(principal, file);
+        return ResponseEntity.ok(imageUrl);
     }
 }
