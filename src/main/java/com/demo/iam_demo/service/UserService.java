@@ -12,7 +12,9 @@ import com.demo.iam_demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,6 +26,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
 
     // lấy danh sách tất cả user
     public List<UserInfoResponseDTO> getAllUsers(){
@@ -103,5 +106,21 @@ public class UserService {
         // mã hóa mật khẩu mới
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    // cập nhật ảnh profile
+    public String updateAvatar(Principal principal, MultipartFile file){
+        String email = principal.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // upload ảnh lên cloudinary
+        String imageUrl = cloudinaryService.uploadImage(file, "profile_pictures");
+
+        // cập nhật url vào user
+        user.setAvatar(imageUrl);
+        userRepository.save(user);
+
+        return imageUrl;
     }
 }
