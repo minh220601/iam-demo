@@ -44,7 +44,7 @@ public class AuthService {
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
         // gán role mặc định = ROLE_USER
-        Role defaultRole = roleRepository.findByName("ROLE_ADMIN")
+        Role defaultRole = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new RuntimeException("Default role not found"));
 
         User user = User.builder()
