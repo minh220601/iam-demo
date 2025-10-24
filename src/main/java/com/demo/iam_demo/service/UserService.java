@@ -3,6 +3,7 @@ package com.demo.iam_demo.service;
 import com.demo.iam_demo.dto.request.ChangePasswordRequest;
 import com.demo.iam_demo.dto.request.UpdateProfileRequest;
 import com.demo.iam_demo.dto.request.UserInfoRequest;
+import com.demo.iam_demo.dto.request.UserRequest;
 import com.demo.iam_demo.dto.response.UserInfoResponseDTO;
 import com.demo.iam_demo.mapper.UserMapper;
 import com.demo.iam_demo.model.Role;
@@ -27,6 +28,50 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
+    private final UserActivityLogService userActivityLogService;
+
+    // tạo user (admin)
+    public UserInfoResponseDTO createUser(UserRequest request){
+        // kiểm tra email đã tồn tại
+        if(userRepository.findByEmail(request.getEmail()).isPresent()){
+            throw new RuntimeException("Email already exists");
+        }
+
+        // mã hóa password
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+
+        // tạo user mới
+        User user = User.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(encodedPassword)
+                .birthDate(request.getBirthDate())
+                .address(request.getAddress())
+                .phone(request.getPhone())
+                .avatar(request.getAvatar())
+                .active(request.isActive())
+                .build();
+
+        // gán role
+        if (request.getRoles() != null && !request.getRoles().isEmpty()){
+            Set<Role> roles = request.getRoles().stream()
+                    .map(roleName -> roleRepository.findByName(roleName)
+                            .orElseThrow(() -> new RuntimeException("Role not found: " + roleName)))
+                    .collect(Collectors.toSet());
+            user.setRoles(roles);
+        } else {
+            // nếu không gửi role thì mặc định là ROLE_USER
+            Role defaultRole = roleRepository.findByName("ROLE_USER")
+                    .orElseThrow(() -> new RuntimeException("Default role not found"));
+            user.getRoles().add(defaultRole);
+        }
+
+        // lưu user mới vào database
+        User savedUser = userRepository.save(user);
+
+        // trả về DTO
+        return userMapper.userInfoResponseDto(savedUser);
+    }
 
     // lấy danh sách tất cả user
     public List<UserInfoResponseDTO> getAllUsers(){
@@ -106,6 +151,9 @@ public class UserService {
         // mã hóa mật khẩu mới
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+
+        // ghi log đổi password
+        userActivityLogService.log(user.getId(), "CHANGE_PASSWORD");
     }
 
     // cập nhật ảnh profile
