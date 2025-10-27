@@ -3,6 +3,7 @@ package com.demo.iam_demo.controller;
 import com.demo.iam_demo.dto.request.ChangePasswordRequest;
 import com.demo.iam_demo.dto.request.UpdateProfileRequest;
 import com.demo.iam_demo.dto.request.UserInfoRequest;
+import com.demo.iam_demo.dto.request.UserRequest;
 import com.demo.iam_demo.dto.response.UserInfoResponseDTO;
 import com.demo.iam_demo.service.UserService;
 import jakarta.validation.Valid;
@@ -21,6 +22,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+
+    // tạo mới user
+    @PostMapping("/admin/create-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserInfoResponseDTO> createUser(@RequestBody @Valid UserRequest request){
+        return ResponseEntity.ok(userService.createUser(request));
+    }
 
     // lấy danh sách user (admin)
     @GetMapping
