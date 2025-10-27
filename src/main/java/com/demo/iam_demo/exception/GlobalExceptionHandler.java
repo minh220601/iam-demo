@@ -11,33 +11,38 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    // xử lý lỗi validate(@NotBlank, @Email)
+    // xử lý lỗi validate(@NotBlank, @Email,...)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException ex){
         Map<String, Object> response = new HashMap<>();
+        String message = ex.getBindingResult().getAllErrors().get(0).getDefaultMessage();
+        response.put("error", "VALIDATION_ERROR");
+        response.put("message", message);
         response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validation Error");
-        response.put("message", ex.getBindingResult().getAllErrors().get(0).getDefaultMessage());
-        return ResponseEntity.badRequest().body(response);
+        response.put("timestamp", System.currentTimeMillis());
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    // xử lý lỗi RuntimeException chung
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex){
+    // xử lý lỗi custom (AppException)
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<Map<String, Object>> handleAppException(AppException ex){
+        HttpStatus status = ex.getErrorCode().getStatus();
         Map<String, Object> response = new HashMap<>();
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Bad request");
+        response.put("error", ex.getErrorCode().name());
         response.put("message", ex.getMessage());
-        return ResponseEntity.badRequest().body(response);
+        response.put("status", status.value());
+        response.put("timestamp", System.currentTimeMillis());
+        return new ResponseEntity<>(response, status);
     }
 
-    // xử lý lỗi mặc định
+    // xử lý lỗi hệ thống không mong đợi (null pointer, SQL,...)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception ex){
         Map<String, Object> response = new HashMap<>();
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Internal Server Error");
+        response.put("error", "INTERNAL_SERVER_ERROR");
         response.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        response.put("timestamp", System.currentTimeMillis());
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
