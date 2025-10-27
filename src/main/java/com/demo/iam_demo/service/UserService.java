@@ -5,6 +5,8 @@ import com.demo.iam_demo.dto.request.UpdateProfileRequest;
 import com.demo.iam_demo.dto.request.UserInfoRequest;
 import com.demo.iam_demo.dto.request.UserRequest;
 import com.demo.iam_demo.dto.response.UserInfoResponseDTO;
+import com.demo.iam_demo.exception.AppException;
+import com.demo.iam_demo.exception.ErrorCode;
 import com.demo.iam_demo.mapper.UserMapper;
 import com.demo.iam_demo.model.Role;
 import com.demo.iam_demo.model.User;
@@ -34,7 +36,7 @@ public class UserService {
     public UserInfoResponseDTO createUser(UserRequest request){
         // kiểm tra email đã tồn tại
         if(userRepository.findByEmail(request.getEmail()).isPresent()){
-            throw new RuntimeException("Email already exists");
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
 
         // mã hóa password
@@ -56,13 +58,13 @@ public class UserService {
         if (request.getRoles() != null && !request.getRoles().isEmpty()){
             Set<Role> roles = request.getRoles().stream()
                     .map(roleName -> roleRepository.findByName(roleName)
-                            .orElseThrow(() -> new RuntimeException("Role not found: " + roleName)))
+                            .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND, "Role not found: " + roleName)))
                     .collect(Collectors.toSet());
             user.setRoles(roles);
         } else {
             // nếu không gửi role thì mặc định là ROLE_USER
             Role defaultRole = roleRepository.findByName("ROLE_USER")
-                    .orElseThrow(() -> new RuntimeException("Default role not found"));
+                    .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND, "Default role not found"));
             user.getRoles().add(defaultRole);
         }
 
@@ -84,21 +86,21 @@ public class UserService {
     public UserInfoResponseDTO getUserById(Long id){
         return userMapper.userInfoResponseDto(
                 userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND))
         );
     }
 
     public UserInfoResponseDTO getUserByEmail(String email){
         return userMapper.userInfoResponseDto(
                 userRepository.findByEmail(email)
-                        .orElseThrow(() -> new RuntimeException("User not found with email: " + email))
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND, "User not found with email: " + email))
         );
     }
 
-    // cập nhật user info với role user
+    // user tự cập nhật profile
     public UserInfoResponseDTO updateUserByEmail(String email, UpdateProfileRequest updateUser){
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.setUsername(updateUser.getUsername());
         user.setAddress(updateUser.getAddress());
         user.setPhone(updateUser.getPhone());
@@ -107,10 +109,10 @@ public class UserService {
         return userMapper.userInfoResponseDto(userRepository.save(user));
     }
 
-    // cập nhật user info với role admin
+    // admin cập nhật user
     public  UserInfoResponseDTO updateUserByAdmin(Long id, UserInfoRequest request){
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         if (request.getUsername() != null) user.setUsername(request.getUsername());
         if (request.getEmail() != null) user.setEmail(request.getEmail());
         if (request.getBirthDate() != null) user.setBirthDate(request.getBirthDate());
@@ -125,7 +127,7 @@ public class UserService {
         if (request.getRoles() != null && !request.getRoles().isEmpty()){
             Set<Role> newRole = request.getRoles().stream()
                     .map(roleName -> roleRepository.findByName(roleName)
-                            .orElseThrow(() -> new RuntimeException("Role not found: " + roleName)))
+                            .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND, "Role not found: " + roleName)))
                     .collect(Collectors.toSet());
             user.setRoles(newRole);
         }
@@ -135,17 +137,20 @@ public class UserService {
 
     // xóa user
     public void deleteUser(Long id){
+        if(!userRepository.existsById(id)){
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
         userRepository.deleteById(id);
     }
 
     // đổi mật khẩu
     public void changePassword(String email, ChangePasswordRequest request){
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // kiểm tra mật khẩu cũ
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())){
-            throw new RuntimeException("Old password is incorrect");
+            throw new AppException(ErrorCode.INVALID_PASSWORD, "Old password is incorrect");
         }
 
         // mã hóa mật khẩu mới
@@ -160,7 +165,7 @@ public class UserService {
     public String updateAvatar(Principal principal, MultipartFile file){
         String email = principal.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // upload ảnh lên cloudinary
         String imageUrl = cloudinaryService.uploadImage(file, "profile_pictures");
