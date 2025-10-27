@@ -25,9 +25,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> initLogin(@Valid @RequestBody LoginRequest request){
-        String msg = authService.initLogin(request);
-        return ResponseEntity.ok(msg);
+    public ResponseEntity<Object> initLogin(@Valid @RequestBody LoginRequest request){
+        Object result = authService.initLogin(request);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/verify-otp")
