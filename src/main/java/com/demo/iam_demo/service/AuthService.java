@@ -6,6 +6,8 @@ import com.demo.iam_demo.dto.request.TokenRefreshRequest;
 import com.demo.iam_demo.dto.response.LoginResponse;
 import com.demo.iam_demo.dto.response.TokenRefreshResponse;
 import com.demo.iam_demo.dto.response.UserResponse;
+import com.demo.iam_demo.exception.AppException;
+import com.demo.iam_demo.exception.ErrorCode;
 import com.demo.iam_demo.model.Role;
 import com.demo.iam_demo.model.User;
 import com.demo.iam_demo.repository.RoleRepository;
@@ -14,13 +16,9 @@ import com.demo.iam_demo.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.sql.Time;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -33,11 +31,13 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final UserActivityLogService userActivityLogService;
 
+    // đăng ký
     public UserResponse register(RegisterRequest request){
         // kiểm tra email đã tồn tại chưa
         if(userRepository.findByEmail(request.getEmail()).isPresent()){
-            throw new RuntimeException("Email is already registered");
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
 
         // mã hóa password
@@ -45,7 +45,7 @@ public class AuthService {
 
         // gán role mặc định = ROLE_USER
         Role defaultRole = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new RuntimeException("Default role not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Default role not found"));
 
         User user = User.builder()
                 .email(request.getEmail())
@@ -65,14 +65,36 @@ public class AuthService {
         return new UserResponse(saved.getId(), saved.getEmail(), saved.getUsername(), saved.isActive());
     }
 
-    public String initLogin(LoginRequest request){
+    // khởi tạo đăng nhập (gửi OTP hoặc tạo token trực tiếp nếu là admin
+    public Object initLogin(LoginRequest request){
         // kiểm tra email tồn tại
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // kiểm tra password
         if(!passwordEncoder.matches(request.getPassword(), user.getPassword())){
-            throw new RuntimeException("Invalid password");
+            throw new AppException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        // bỏ qua opt cho admin mặc định
+        if(user.getEmail().equalsIgnoreCase("admin123@gmail.com")){
+            // tạo access và refresh token
+            String accessToken = jwtUtils.generateAccessToken(user.getEmail());
+            String refreshToken = jwtUtils.generateRefreshToken(user.getEmail());
+
+            // lưu refresh token vào redis
+            redisTemplate.opsForValue().set(
+                    "refresh_token:" + user.getEmail(),
+                    refreshToken,
+                    jwtUtils.getRefreshTokenExpiration(),
+                    TimeUnit.MILLISECONDS
+            );
+
+            // ghi log login
+            userActivityLogService.log(user.getId(), "LOGIN_ADMIN");
+
+            //trả token trực tiếp
+            return new LoginResponse(accessToken, refreshToken);
         }
 
         // tạo OTP
@@ -92,16 +114,17 @@ public class AuthService {
         return "OTP send to email. Verify to complete login.";
     }
 
+    // xác thực OTP đăng nhập
     public LoginResponse verifyLoginOtp(String email, String otp){
         // xác thực OTP và cấp token
         String key = "login_otp:" + email.toLowerCase();
         String storedOtp = redisTemplate.opsForValue().get(key);
 
         if(storedOtp == null){
-            throw new RuntimeException("OTP expired or not found");
+            throw new AppException(ErrorCode.UNAUTHENTICATED, "OTP expired or not found");
         }
         if(!storedOtp.equals(otp)){
-            throw new RuntimeException("Invalid OTP");
+            throw new AppException(ErrorCode.UNAUTHENTICATED, "Invalid OTP");
         }
 
         // xóa OTP sau khi xác thực
@@ -109,10 +132,13 @@ public class AuthService {
 
         // tìm user và sinh JWT
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String accessToken = jwtUtils.generateAccessToken(user.getEmail());
         String refreshToken = jwtUtils.generateRefreshToken(user.getEmail());
+
+        // ghi log đăng nhập
+        userActivityLogService.log(user.getId(), "LOGIN");
 
         // lưu refresh token vào redis (key = email, value = token)
         redisTemplate.opsForValue().set(
@@ -126,12 +152,13 @@ public class AuthService {
         return new LoginResponse(accessToken, refreshToken);
     }
 
+    // refresh token
     public TokenRefreshResponse refreshToken(TokenRefreshRequest request){
         String refreshToken = request.getRefreshToken();
 
         // kiểm tra refresh token hợp lệ
         if(!jwtUtils.validateToken(refreshToken)){
-            throw new RuntimeException("Invalid refresh token");
+            throw new AppException(ErrorCode.UNAUTHENTICATED, "Invalid refresh token");
         }
 
         // lấy subject từ refresh token (email)
@@ -140,7 +167,7 @@ public class AuthService {
         // lấy refresh token từ redis để kiểm tra
         String storedToken = redisTemplate.opsForValue().get("refresh_token:" + email);
         if(storedToken == null || !storedToken.equals(refreshToken)){
-            throw new RuntimeException("Refresh token not found or expired");
+            throw new AppException(ErrorCode.UNAUTHENTICATED, "Refresh token not found or expired");
         }
 
         // Sinh access token mới
@@ -159,9 +186,15 @@ public class AuthService {
         return new TokenRefreshResponse(newAccessToken, newRefreshToken);
     }
 
+    // đăng xuất
     public void logout(String email, String accessToken){
         //xóa refresh token trong redis
         redisTemplate.delete("refresh_token:" + email);
+
+        // ghi log logout
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        userActivityLogService.log(user.getId(), "LOGOUT");
 
         //thêm access token vào blacklist
         long expirationMillis = jwtUtils.getRemainingValidity(accessToken);
@@ -178,7 +211,7 @@ public class AuthService {
     // yêu cầu reset password
     public void requestPasswordReset(String email){
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // sinh otp 6 số
         int otp = (int) (Math.random() * 900000) + 100000;
@@ -201,11 +234,11 @@ public class AuthService {
         String storedOtp = redisTemplate.opsForValue().get(key);
 
         if(storedOtp == null){
-            throw new RuntimeException("OTP expired or not found");
+            throw new AppException(ErrorCode.UNAUTHENTICATED, "OTP expired or not found");
         }
 
         if(!storedOtp.equals(otp)){
-            throw new RuntimeException("Invalid OTP");
+            throw new AppException(ErrorCode.UNAUTHENTICATED, "Invalid OTP");
         }
 
         // xóa otp sau khi dùng
@@ -213,8 +246,11 @@ public class AuthService {
 
         // cập nhật mật khẩu mới
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+
+        // ghi log reset password
+        userActivityLogService.log(user.getId(), "RESET_PASSWORD");
     }
 }
